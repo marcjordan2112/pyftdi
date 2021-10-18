@@ -429,7 +429,8 @@ class SpiController:
             # until the device is open, there is no way to tell if it has a
             # wide (16) or narrow port (8). Lower API can deal with any, so
             # delay any truncation till the device is actually open
-            self._set_gpio_direction(16, (~self._spi_mask) & 0xFFFF, io_dir)
+            # self._set_gpio_direction(16, (~self._spi_mask) & 0xFFFF, io_dir)
+            self._set_gpio_direction(16, io_out, io_dir)
             kwargs['direction'] = self._spi_dir | self._gpio_dir
             kwargs['initial'] = self._cs_bits | (io_out & self._gpio_mask)
             if not isinstance(url, str):
@@ -699,7 +700,7 @@ class SpiController:
             self._set_gpio_direction(16 if self._wide_port else 8,
                                      pins, direction)
 
-    def _set_gpio_direction(self, width: int, pins: int,
+    def _set_gpio_direction_old(self, width: int, pins: int,
                             direction: int) -> None:
         if pins & self._spi_mask:
             raise SpiIOError('Cannot access SPI pins as GPIO')
@@ -710,6 +711,18 @@ class SpiController:
         self._gpio_dir &= ~pins
         self._gpio_dir |= (pins & direction)
         self._gpio_mask = gpio_mask & pins
+
+    def _set_gpio_direction(self, width: int, pins: int,
+                            direction: int) -> None:
+        if pins & self._spi_mask:
+            raise SpiIOError('Cannot access SPI pins as GPIO')
+        gpio_mask = (1 << width) - 1
+        gpio_mask &= ~self._spi_mask
+        if (pins & self._gpio_mask) != pins:
+            raise SpiIOError('No such GPIO pin(s)')
+        self._gpio_dir &= ~direction
+        self._gpio_dir |= direction
+        # self._gpio_mask = gpio_mask & pins
 
     def _read_raw(self, read_high: bool) -> int:
         if not self._ftdi.is_connected:

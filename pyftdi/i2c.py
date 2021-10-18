@@ -354,7 +354,8 @@ class I2cController:
     LOW = 0x00
     HIGH = 0xff
     BIT0 = 0x01
-    IDLE = HIGH
+    # IDLE = HIGH
+    IDLE = 0x03
     SCL_BIT = 0x01  #AD0
     SDA_O_BIT = 0x02  #AD1
     SDA_I_BIT = 0x04  #AD2
@@ -494,6 +495,7 @@ class I2cController:
             # as 3-phase clock frequency mode is required for I2C mode, the
             # FTDI clock should be adapted to match the required frequency.
             kwargs['direction'] = self.I2C_DIR | self._gpio_dir
+            idle = self.IDLE
             kwargs['initial'] = self.IDLE | (io_out & self._gpio_mask)
             kwargs['frequency'] = (3.0*frequency)/2.0
             if not isinstance(url, str):
@@ -948,7 +950,7 @@ class I2cController:
                 self._write_raw(data, use_high)
                 self._gpio_low = data & 0xFF & ~self._i2c_mask
 
-    def _set_gpio_direction(self, pins: int,
+    def _set_gpio_direction_old(self, pins: int,
                             direction: int) -> None:
         if pins & self._i2c_mask:
             raise I2cIOError('Cannot access I2C pins as GPIO')
@@ -958,6 +960,18 @@ class I2cController:
             raise I2cIOError('No such GPIO pin(s)')
         self._gpio_dir &= ~pins
         self._gpio_dir |= (pins & direction)
+        # self._gpio_mask = gpio_mask & pins
+
+    def _set_gpio_direction(self, pins: int,
+                            direction: int) -> None:
+        if pins & self._i2c_mask:
+            raise I2cIOError('Cannot access I2C pins as GPIO')
+        # gpio_mask = (1 << width) - 1
+        # gpio_mask &= ~self._i2c_mask
+        if (pins & self._gpio_mask) != pins:
+            raise I2cIOError('No such GPIO pin(s)')
+        self._gpio_dir &= ~direction
+        self._gpio_dir |= direction
         # self._gpio_mask = gpio_mask & pins
 
     @property
